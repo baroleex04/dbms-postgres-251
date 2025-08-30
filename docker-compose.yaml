@@ -1,0 +1,18 @@
+services:
+  postgres:
+    build: ./docker/postgres  # Uses the official PostgreSQL 17 image
+    container_name: postgres
+    environment:
+      POSTGRES_USER: admin           # Default superuser (optional)
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: database         # Default database to create (optional)
+      PGDATA: /var/lib/postgresql/data/pgdata  # Explicit data directory path
+    volumes:
+      - ./data:/var/lib/postgresql/data/pgdata
+      - ./scripts:/docker-entrypoint-initdb.d
+      - ./source:/docker-entrypoint-initdb.d/source
+      - ./conf:/etc/postgresql
+      - ./logs:/var/log/postgresql
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
