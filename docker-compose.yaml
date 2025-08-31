@@ -1,18 +1,25 @@
+version: "3.9"
 services:
   postgres:
-    build: ./docker/postgres  # Uses the official PostgreSQL 17 image
-    container_name: postgres
+    image: postgres:15
+    container_name: pg_container
     environment:
-      POSTGRES_USER: admin           # Default superuser (optional)
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: database         # Default database to create (optional)
-      PGDATA: /var/lib/postgresql/data/pgdata  # Explicit data directory path
-    volumes:
-      - ./data:/var/lib/postgresql/data/pgdata
-      - ./scripts:/docker-entrypoint-initdb.d
-      - ./source:/docker-entrypoint-initdb.d/source
-      - ./conf:/etc/postgresql
-      - ./logs:/var/log/postgresql
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: bikedb
     ports:
       - "5432:5432"
-    restart: unless-stopped
+    volumes:
+      # - ./pgdata:/var/lib/postgresql/data     # dữ liệu DB
+      - ./data:/data                 # mount thư mục chứa CSV
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "8082:80"
+    depends_on:
+      - postgres
