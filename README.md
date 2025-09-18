@@ -22,3 +22,12 @@ In CLI: Run queries in file `0.create_table.sql` (located in `scripts/sql/`)
 docker compose down -v
 <!-- sudo rm -rf data -->
 ```
+
+## Next step
+- Process text data as usable (from 1 to multi columns)
+- Import metadata into postgres
+- Generate fake data for text data (for performance measurement of DBMS) - no impact on root dataset
+- Identify necessary column (measure criticality) - useless ones
+- Output as script (reusable)
+- Identify business requirements - prompt as stakeholders
+- Centralize image (if possible)
