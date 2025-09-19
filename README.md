@@ -25,9 +25,22 @@ docker compose down -v
 
 ## Next step
 - Process text data as usable (from 1 to multi columns)
+```
+make up
+make init-db
+make etl
+```
+login to pgadmin as account in docker compose and check
+
 - Import metadata into postgres
+
 - Generate fake data for text data (for performance measurement of DBMS) - no impact on root dataset
+
 - Identify necessary column (measure criticality) - useless ones
+
 - Output as script (reusable)
+
 - Identify business requirements - prompt as stakeholders
+
 - Centralize image (if possible)
+
