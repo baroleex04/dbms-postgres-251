@@ -35,9 +35,8 @@ docker compose down -v
 - Centralize image (if possible) - this item as handled manually to local as large size -> large effort
 
 ## ⚙️ Setup & Commands
-
+#### Please notice that download the data image from ref links, extracting it and place it in the folder data beforing naming it as `test_MRI_Data`. Moreover, download the excel report file and add it under data folder.
 ### 1. Start PostgreSQL + pgAdmin
-
 ```bash
 make up
 ```

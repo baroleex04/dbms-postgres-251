@@ -27,6 +27,11 @@ etl-report:
 	source .venv/bin/activate && \
 	python3 $(ETL_REPORT_SCRIPT)
 
+clear-report:
+	docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -c "\
+	TRUNCATE TABLE findings, spine_levels, extra_findings, reports RESTART IDENTITY CASCADE; \
+	"
+
 # Run ETL job locally
 etl-mri:
 	source .venv/bin/activate && \

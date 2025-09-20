@@ -3,28 +3,22 @@ import re
 import nltk
 from sqlalchemy import create_engine, text
 
-# Download necessary tokenizers
 nltk.download("punkt")
-nltk.download("punkt_tab")
 
-# Connect to Postgres
 engine = create_engine("postgresql://postgres:postgres@localhost:5432/bikedb")
-
-# Load Excel
 file_path = "./data/Radiologists Report.xlsx"
 df = pd.read_excel(file_path)
 
-# --- Normalize column names ---
+# Normalize column names
 df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-
-# Fix weird apostrophe column names if present
-rename_map = {}
-for col in df.columns:
-    if "clinician" in col:  # catch clinician's_notes or similar
-        rename_map[col] = "clinicians_notes"
+rename_map = {c: "clinicians_notes" for c in df.columns if "clinician" in c}
 df.rename(columns=rename_map, inplace=True)
 
-def clean_text(text):
+
+# -------------------------------
+# Utility functions
+# -------------------------------
+def clean_text(text: str) -> str:
     if pd.isna(text):
         return ""
     text = text.lower()
@@ -32,9 +26,10 @@ def clean_text(text):
     text = re.sub(r"\s+", " ", text).strip()
     return text
 
-def extract_spine_levels(text):
+
+def extract_spine_levels(text: str):
     text = text.upper()
-    pattern = r'([CLDS]\d{1,2})(?:[-/](?:([CLDS])?(\d{1,2})))?'
+    pattern = r"([CLDS]\d{1,2})(?:[-/](?:([CLDS])?(\d{1,2})))?"
     matches = re.findall(pattern, text)
     levels = []
     for start_full, region2, num2 in matches:
@@ -48,7 +43,8 @@ def extract_spine_levels(text):
         levels.append((region1, start, end))
     return levels
 
-def extract_findings(text):
+
+def extract_findings(text: str):
     findings = []
     t = text.lower()
     patterns = {
@@ -63,7 +59,7 @@ def extract_findings(text):
         "schmorl": [r"schmorl"],
         "cyst": [r"cyst", r"tarlov\s+cyst", r"renal\s+cyst", r"pelvic\s+cyst"],
         "lipoma": [r"lipoma"],
-        "hemangioma": [r"hemangioma"]
+        "hemangioma": [r"hemangioma"],
     }
     severity_map = {"mild": "mild", "moderate": "moderate", "severe": "severe"}
     laterality_map = {"left": "left", "right": "right", "bilateral": "bilateral"}
@@ -78,7 +74,45 @@ def extract_findings(text):
     return findings
 
 
-# --- Insert into DB ---
+# -------------------------------
+# MRI Section Splitting
+# -------------------------------
+MRI_HEADERS = [
+    r"(LSS MRI)",
+    r"(Lumbosacral MRI)",
+    r"(Cervical spine MRI|Cervical MRI)",
+    r"(Thoracic MRI)",
+    r"(Lumbar MRI)",
+]
+
+split_pattern = re.compile("|".join(MRI_HEADERS), re.IGNORECASE)
+
+
+def split_mri_sections(raw_text: str):
+    """
+    Splits raw text into (study_type, description) tuples.
+    Uses header end to ensure multiple MRI sections (like case 272) are captured.
+    """
+    if not raw_text:
+        return []
+
+    matches = list(split_pattern.finditer(raw_text))
+    if not matches:
+        return [("MRI", raw_text.strip())]
+
+    sections = []
+    for i, m in enumerate(matches):
+        header = m.group(0).strip()
+        start = m.end()  # <--- FIX: start after header
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(raw_text)
+        body = raw_text[start:end].strip(" :\n")
+        sections.append((header, body))
+    return sections
+
+
+# -------------------------------
+# ETL Main
+# -------------------------------
 with engine.begin() as conn:
     print(f"📌 Connected to DB: {engine.url.database}, server: {engine.url.host}")
 
@@ -101,7 +135,7 @@ with engine.begin() as conn:
             {"pid": pid},
         )
 
-        # Step 2: insert report
+        # Step 2: insert ONE report row (original Excel text)
         result = conn.execute(
             text("""
                 INSERT INTO reports (patient_id, raw_text, cleaned_text, word_count, report_tsv)
@@ -112,7 +146,7 @@ with engine.begin() as conn:
         )
         report_id = result.scalar()
 
-        # Step 3: insert spine levels
+        # Step 3: insert spine levels from full raw text
         levels = extract_spine_levels(raw)
         for region, start, end in levels:
             res = conn.execute(
@@ -125,7 +159,6 @@ with engine.begin() as conn:
             )
             level_id = res.scalar()
 
-            # Step 4: insert findings for each level
             for ftype, sev, lat in extract_findings(raw):
                 conn.execute(
                     text("""
@@ -135,14 +168,15 @@ with engine.begin() as conn:
                     {"lid": level_id, "ftype": ftype, "sev": sev, "lat": lat},
                 )
 
-        # Step 5: insert extra findings (not tied to spine level)
-        if any(word in clean for word in ["cyst", "lipoma", "hemangioma"]):
+        # Step 4: insert extra findings (split sections)
+        sections = split_mri_sections(raw)
+        for study_type, desc in sections:
             conn.execute(
                 text("""
-                    INSERT INTO extra_findings (report_id, description)
-                    VALUES (:rid, :desc)
+                    INSERT INTO extra_findings (report_id, study_type, description)
+                    VALUES (:rid, :stype, :desc)
                 """),
-                {"rid": report_id, "desc": raw},
+                {"rid": report_id, "stype": study_type, "desc": desc},
             )
 
 print("✅ Data imported into structured schema")
