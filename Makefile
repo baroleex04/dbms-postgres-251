@@ -4,9 +4,10 @@ DB_NAME=bikedb
 DB_USER=postgres
 SQL_FILE=./scripts/sql/init_schema.sql
 ETL_SERVICE=etl
-ETL_SCRIPT=scripts/etl/import_reports.py
+ETL_REPORT_SCRIPT=scripts/etl/import_reports.py
+ETL_MRI_SCRIPT=scripts/etl/import_mri_data.py
 
-.PHONY: up down init-db etl install-deps psql
+.PHONY: up down init-db etl-report etl-mri install-deps psql
 
 # Start services
 up:
@@ -21,10 +22,19 @@ init-db:
 	docker exec -it $(DB_CONTAINER) \
 		psql -U $(DB_USER) -d $(DB_NAME) -f /scripts/sql/init_schema.sql
 
-# Run ETL job locally
-etl:
+# Run ETL report job locally
+etl-report:
 	source .venv/bin/activate && \
-	python3 $(ETL_SCRIPT)
+	python3 $(ETL_REPORT_SCRIPT)
+
+# Run ETL job locally
+etl-mri:
+	source .venv/bin/activate && \
+	python3 $(ETL_MRI_SCRIPT)
+
+clear-mri:
+	docker exec -it $(DB_CONTAINER) \
+		psql -U $(DB_USER) -d $(DB_NAME) -c "TRUNCATE TABLE dicom_metadata RESTART IDENTITY CASCADE;"
 
 # Install Python dependencies locally
 setup-etl:

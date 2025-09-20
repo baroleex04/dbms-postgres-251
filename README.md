@@ -24,175 +24,192 @@ docker compose down -v
 ```
 
 ## Next step
-- Process text data as usable (from 1 to multi columns)
-```
-make up
-make init-db
-make etl
-```
-login to pgadmin as account in docker compose and check
+- Generate fake data for text data (for performance measurement of DBMS) - no impact on root dataset - not done as full dataset not handled as import full
 
-- Import metadata into postgres
+- Identify necessary column (measure criticality) - useless ones - briefly done
 
-- Generate fake data for text data (for performance measurement of DBMS) - no impact on root dataset
-
-- Identify necessary column (measure criticality) - useless ones
-
-- Output as script (reusable)
+- Output as script (reusable) - done
 
 - Identify business requirements - prompt as stakeholders
 
-- Centralize image (if possible)
+- Centralize image (if possible) - this item as handled manually to local as large size -> large effort
 
-# 📊 Schema Explanation
+## ⚙️ Setup & Commands
 
-Your ETL pipeline takes **Excel data** (`Patient ID`, `Clinician’s Notes`) and organizes it into multiple related tables. Here’s the meaning of each:
+### 1. Start PostgreSQL + pgAdmin
 
----
-
-### 1. **patients**
-
-```sql
-CREATE TABLE patients (
-    patient_id INT PRIMARY KEY
-);
+```bash
+make up
 ```
 
-* Stores a **unique patient ID**.
-* This ensures that every report can be linked to the correct patient.
-* Prevents duplicate IDs with a `PRIMARY KEY`.
-
-**Example row:**
-
-| patient\_id |
-| ----------- |
-| 541         |
+➡ Spins up the containers from `docker-compose.yml`.
+pgAdmin is available at `http://localhost:8082` (login with the credentials in your docker-compose file).
 
 ---
 
-### 2. **reports**
+### 2. Initialize Database Schema
 
-```sql
-CREATE TABLE reports (
-    report_id SERIAL PRIMARY KEY,
-    patient_id INT REFERENCES patients(patient_id),
-    raw_text TEXT,
-    cleaned_text TEXT,
-    word_count INT,
-    report_tsv tsvector
-);
+```bash
+make init-db
 ```
 
-* Each Excel row becomes a **report record**.
-* Fields:
+➡ Runs `scripts/sql/init_schema.sql` inside the container and sets up the following tables:
 
-  * `raw_text`: original clinical note (from Excel).
-  * `cleaned_text`: lowercased, punctuation-stripped version.
-  * `word_count`: number of tokens (useful for QA and analytics).
-  * `report_tsv`: a `tsvector` column → supports **Postgres full-text search**.
-
-**Example row:**
-
-| report\_id | patient\_id | raw\_text                  | cleaned\_text          | word\_count | report\_tsv        |
-| ---------- | ----------- | -------------------------- | ---------------------- | ----------- | ------------------ |
-| 1          | 541         | “L4-5: Mild disc bulge...” | “l4 5 mild disc bulge” | 12          | `'bulge':3 'disc'` |
+* `patients`
+* `reports`
+* `spine_levels`
+* `findings`
+* `extra_findings`
+* `dicom_metadata`
 
 ---
 
-### 3. **spine\_levels**
+### 3. Load Excel Reports (Clinician Notes)
 
-```sql
-CREATE TABLE spine_levels (
-    level_id SERIAL PRIMARY KEY,
-    report_id INT REFERENCES reports(report_id),
-    region VARCHAR(10),
-    vertebra_start VARCHAR(10),
-    vertebra_end VARCHAR(10)
-);
+```bash
+make setup-etl
+make etl-report
 ```
 
-* Extracts **spinal levels** mentioned in the notes (e.g., `L4-L5`, `C5-C6`).
-* Normalizes text like `L5/S1` into structured start/end vertebrae.
-* Linked to the specific report (`report_id`).
+➡ Runs `scripts/etl/import_reports.py` locally.
 
-**Example row:**
-
-| level\_id | report\_id | region | vertebra\_start | vertebra\_end |
-| --------- | ---------- | ------ | --------------- | ------------- |
-| 10        | 1          | L      | L4              | L5            |
+* Reads `Radiologists Report.xlsx`
+* Inserts into **patients** + **reports**
+* Splits findings into `spine_levels` and `findings`
 
 ---
 
-### 4. **findings**
+### 4. Load MRI Metadata (DICOM)
 
-```sql
-CREATE TABLE findings (
-    finding_id SERIAL PRIMARY KEY,
-    level_id INT REFERENCES spine_levels(level_id),
-    finding_type VARCHAR(50),
-    severity VARCHAR(20),
-    laterality VARCHAR(20)
-);
+```bash
+make etl-mri
 ```
 
-* Extracts **structured findings** per spine level:
+➡ Runs `scripts/etl/import_mri_data.py` locally.
 
-  * `finding_type`: bulge, protrusion, herniation, stenosis, fracture, etc.
-  * `severity`: mild, moderate, severe.
-  * `laterality`: left, right, bilateral.
-* Each finding is tied to a specific **spine level**.
-
-**Example row:**
-
-| finding\_id | level\_id | finding\_type | severity | laterality |
-| ----------- | --------- | ------------- | -------- | ---------- |
-| 101         | 10        | bulge         | mild     | left       |
+* Walks through `./data/test_MRI_Data`
+* Extracts DICOM metadata (sex, age, modality, slice thickness, etc.)
+* Inserts into **dicom\_metadata**
 
 ---
 
-### 5. **extra\_findings**
+### 5. Clear All MRI Data (reset for testing)
 
-```sql
-CREATE TABLE extra_findings (
-    extra_id SERIAL PRIMARY KEY,
-    report_id INT REFERENCES reports(report_id),
-    description TEXT
-);
+```bash
+make clear-mri
 ```
 
-* Stores findings **not tied to a specific vertebral level**, but still important.
-* Example: cysts, lipomas, hemangiomas.
-* Linked directly to the `report_id`.
-
-**Example row:**
-
-| extra\_id | report\_id | description                      |
-| --------- | ---------- | -------------------------------- |
-| 12        | 1          | “Incidental finding: renal cyst” |
+➡ Keeps schema but removes all MRI rows.
+Use when re-importing DICOM datasets.
 
 ---
 
-### 6. **Indexes**
+### 6. Open SQL Shell
 
-```sql
-CREATE INDEX idx_reports_tsv ON reports USING GIN(report_tsv);
-CREATE INDEX idx_spine_levels_region ON spine_levels(region);
-CREATE INDEX idx_findings_type ON findings(finding_type);
+```bash
+make psql
 ```
 
-* **`idx_reports_tsv`**: makes full-text searches (`@@ to_tsquery`) fast.
-* **`idx_spine_levels_region`**: speeds up queries by spine region (e.g., all lumbar cases).
-* **`idx_findings_type`**: makes counting/filtering by finding type (e.g., bulge vs stenosis) efficient.
+➡ Opens `psql` CLI inside container for manual queries.
 
 ---
 
-# 🚀 Why This Schema is Useful
+## 📊 Schema Overview
 
-By splitting Excel notes into these **normalized tables**:
+### **patients**
 
-* ✅ Patients → unique identifiers.
-* ✅ Reports → keep original + cleaned notes for NLP and audit.
-* ✅ Spine levels → structured vertebral references.
-* ✅ Findings → structured pathologies with severity + laterality.
-* ✅ Extra findings → capture incidental info.
-* ✅ Indexes → optimize performance for text mining and analytics.
+Stores unique patient identifiers.
+
+```sql
+SELECT * FROM patients LIMIT 5;
+```
+
+---
+
+### **reports**
+
+Stores text reports (raw + cleaned).
+
+```sql
+SELECT report_id, LEFT(raw_text, 80)
+FROM reports
+LIMIT 5;
+```
+
+---
+
+### **spine\_levels**
+
+Structured extraction of vertebral levels from notes.
+
+```sql
+SELECT * FROM spine_levels WHERE region = 'L';
+```
+
+---
+
+### **findings**
+
+Structured findings tied to spine levels.
+
+```sql
+SELECT finding_type, COUNT(*) 
+FROM findings 
+GROUP BY finding_type;
+```
+
+---
+
+### **extra\_findings**
+
+Incidental notes not tied to specific levels.
+
+```sql
+SELECT * FROM extra_findings WHERE report_id = 1;
+```
+
+---
+
+### **dicom\_metadata**
+
+MRI image metadata (linked by patient\_id).
+
+```sql
+SELECT patient_id, COUNT(*) AS image_count
+FROM dicom_metadata
+GROUP BY patient_id;
+```
+
+---
+
+## 🔍 Typical Queries
+
+* **All MRI images for a patient**
+
+```sql
+SELECT file_path, series_description
+FROM dicom_metadata
+WHERE patient_id = 3;
+```
+
+* **Reports + findings for a patient**
+
+```sql
+SELECT r.report_id, f.finding_type, f.severity
+FROM reports r
+JOIN spine_levels s ON r.report_id = s.report_id
+JOIN findings f ON s.level_id = f.level_id
+WHERE r.patient_id = 3;
+```
+
+* **All images related to a finding (e.g., “bulge”)**
+
+```sql
+SELECT f.finding_type, d.file_path
+FROM findings f
+JOIN spine_levels s ON f.level_id = s.level_id
+JOIN reports r ON s.report_id = r.report_id
+JOIN dicom_metadata d ON r.patient_id = d.patient_id
+WHERE f.finding_type = 'bulge';
+```
+
