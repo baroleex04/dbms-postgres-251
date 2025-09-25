@@ -22,21 +22,23 @@ init-db:
 	docker exec -it $(DB_CONTAINER) \
 		psql -U $(DB_USER) -d $(DB_NAME) -f /scripts/sql/init_schema.sql
 
-# Run ETL report job locally
+# Run ETL report job 
 etl-report:
 	source .venv/bin/activate && \
 	python3 $(ETL_REPORT_SCRIPT)
 
+# Clear report data
 clear-report:
 	docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -c "\
 	TRUNCATE TABLE findings, spine_levels, extra_findings, reports RESTART IDENTITY CASCADE; \
 	"
 
-# Run ETL job locally
+# Run mri data import job locally
 etl-mri:
 	source .venv/bin/activate && \
 	python3 $(ETL_MRI_SCRIPT)
 
+# Clear mri data
 clear-mri:
 	docker exec -it $(DB_CONTAINER) \
 		psql -U $(DB_USER) -d $(DB_NAME) -c "TRUNCATE TABLE dicom_metadata RESTART IDENTITY CASCADE;"
@@ -51,3 +53,21 @@ setup-etl:
 psql:
 	docker exec -it $(DB_CONTAINER) \
 		psql -U $(DB_USER) -d $(DB_NAME)
+
+# Clear all schema data (truncate all tables, reset sequences)
+clear-db:
+	docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -c "\
+	TRUNCATE TABLE \
+		instance_images, instances, series, studies, \
+		findings, spine_levels, extra_findings, reports, patients \
+	RESTART IDENTITY CASCADE; \
+	"
+
+# Reset database schema (drop all tables and reload schema from SQL file)
+reset-db:
+	docker exec -i $(DB_CONTAINER) psql -U $(DB_USER) -d $(DB_NAME) -c "\
+		DROP SCHEMA public CASCADE; \
+		CREATE SCHEMA public; \
+	"
+	docker exec -i $(DB_CONTAINER) \
+		psql -U $(DB_USER) -d $(DB_NAME) -f /scripts/sql/init_schema.sql

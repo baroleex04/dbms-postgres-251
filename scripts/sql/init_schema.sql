@@ -121,6 +121,15 @@ CREATE INDEX idx_reports_tsv ON reports USING GIN(report_tsv);
 CREATE INDEX idx_spine_levels_region ON spine_levels(region);
 CREATE INDEX idx_findings_type ON findings(finding_type);
 CREATE INDEX idx_extra_study_type ON extra_findings(study_type);
--- CREATE INDEX idx_dicom_patient ON dicom_metadata(patient_id);
--- CREATE INDEX idx_dicom_series ON dicom_metadata(series_instance_uid);
--- CREATE INDEX idx_dicom_modality ON dicom_metadata(modality);
+
+DROP TABLE IF EXISTS instance_images CASCADE;
+
+CREATE TABLE IF NOT EXISTS instance_images (
+    image_id SERIAL PRIMARY KEY,
+    sop_instance_uid TEXT UNIQUE REFERENCES instances(sop_instance_uid) ON DELETE CASCADE,
+    file_path TEXT NOT NULL,
+    base64_data TEXT NOT NULL
+);
+
+-- For lookup speed
+CREATE INDEX idx_instance_images_uid ON instance_images(sop_instance_uid);

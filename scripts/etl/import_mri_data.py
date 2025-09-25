@@ -1,4 +1,5 @@
 import os
+import base64
 import pydicom
 from sqlalchemy import create_engine, text
 
@@ -36,6 +37,11 @@ def extract_metadata(file_path):
 
         "file_path": file_path,
     }
+
+def encode_base64(file_path):
+    """Read image file and return base64 string"""
+    with open(file_path, "rb") as f:
+        return base64.b64encode(f.read()).decode("utf-8")
 
 with engine.begin() as conn:
     for root, _, files in os.walk(root_dir):
@@ -84,7 +90,7 @@ with engine.begin() as conn:
                 meta
             )
 
-            # Insert instance
+            # Insert instance metadata
             conn.execute(
                 text("""
                     INSERT INTO instances (sop_instance_uid, series_instance_uid, instance_number, slice_thickness,
@@ -95,5 +101,20 @@ with engine.begin() as conn:
                 """),
                 meta
             )
+
+            # Store Base64 image
+            try:
+                b64_data = encode_base64(file_path)
+                conn.execute(
+                    text("""
+                        INSERT INTO instance_images (sop_instance_uid, file_path, base64_data)
+                        VALUES (:sop_instance_uid, :file_path, :b64)
+                        ON CONFLICT (sop_instance_uid) DO NOTHING
+                    """),
+                    {"sop_instance_uid": meta["sop_instance_uid"], "file_path": file_path, "b64": b64_data}
+                )
+            except Exception as e:
+                print(f"⚠️ Failed to encode {file_path}: {e}")
+                continue
 
             print(f"✅ Inserted {fname} for patient {patient_id}")
