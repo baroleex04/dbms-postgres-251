@@ -10,6 +10,7 @@ services:
     ports:
       - "5432:5432"
     volumes:
+      - ./postgres_data:/var/lib/postgresql/data 
       - ./data:/data
       - ./scripts:/scripts
 
@@ -25,3 +26,6 @@ services:
       - ./scripts/servers.json:/pgadmin4/servers.json
     depends_on:
       - postgres
+
+# PV for postgres
+volumes: {}
