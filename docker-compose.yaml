@@ -29,6 +29,7 @@ services:
 
   orthanc:
     image: jodogne/orthanc-plugins
+    platform: linux/amd64
     container_name: orthanc
     restart: unless-stopped
     ports:
@@ -36,7 +37,7 @@ services:
       - "4242:4242"
     volumes:
       - orthanc-storage:/var/lib/orthanc/db
-      - ./orthanc.json:/etc/orthanc/orthanc.json
+      # - ./orthanc.json:/etc/orthanc/orthanc.json
   dbeaver:
     image: dbeaver/cloudbeaver:latest   # bản web-based chính thức
     container_name: dbeaver
