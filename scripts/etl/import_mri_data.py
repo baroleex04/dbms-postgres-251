@@ -23,7 +23,7 @@ processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
 # ----------------------------
 # Data folder
 # ----------------------------
-root_dir = "./data/test_MRI_Data"
+root_dir = "./data/01_MRI_Data"
 
 # ----------------------------
 # Metadata extraction

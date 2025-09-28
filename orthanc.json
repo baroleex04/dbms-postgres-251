@@ -1,0 +1,21 @@
+{
+  "Name": "MyOrthanc",
+  "HttpServerEnabled": true,
+  "HttpPort": 8042,
+  "DicomServerEnabled": true,
+  "DicomPort": 4242,
+  "AuthenticationEnabled": true,
+  "RegisteredUsers": {
+    "orthanc": "orthanc"
+  },
+  "RemoteAccessAllowed": true,
+  "PostgreSQL": {
+    "EnableIndex": true,
+    "EnableStorage": false,
+    "Host": "postgres",
+    "Port": 5432,
+    "Database": "bikedb",
+    "Username": "postgres",
+    "Password": "postgres"
+  }
+}

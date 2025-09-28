@@ -1,3 +1,19 @@
+SELECT st.modality
+      , st.study_description
+      , st.procedure_description
+      , se.series_description
+      , decode(base64_data, 'base64') AS img_bytes
+  FROM patients p
+  JOIN studies st ON p.patient_id = st.patient_id
+  JOIN series se ON st.study_instance_uid = se.study_instance_uid
+  JOIN instances i ON se.series_instance_uid = i.series_instance_uid
+  JOIN instance_images ii ON i.sop_instance_uid = ii.sop_instance_uid
+  WHERE 1=1
+    AND p.patient_id = 6
+
+--------------------------------------------------------------------------------------
+
+
 WITH T AS (
   SELECT *
       , CASE 
@@ -17,8 +33,11 @@ WITH T AS (
   JOIN series se ON st.study_instance_uid = se.study_instance_uid
   JOIN instances i ON se.series_instance_uid = i.series_instance_uid
   JOIN instance_images ii ON i.sop_instance_uid = ii.sop_instance_uid
+  WHERE p.patient_id = 6
 )
-SELECT CASE
+, T1 AS (
+  SELECT decode(base64_data, 'base64') AS img_bytes
+    , CASE
          WHEN rounded_orientation[1:3] = ARRAY[1,0,0] 
               AND rounded_orientation[4:6] = ARRAY[0,1,0] 
            THEN 'Axial'
@@ -31,6 +50,8 @@ SELECT CASE
          ELSE 'Unknown'
        END AS plane
 FROM T
+)
+SELECT * FROM T1 WHERE plane = 'Sagittal';
 
 
 
@@ -47,7 +68,9 @@ SELECT *
   JOIN series se ON st.study_instance_uid = se.study_instance_uid
   JOIN instances i ON se.series_instance_uid = i.series_instance_uid
   JOIN instance_images ii ON i.sop_instance_uid = ii.sop_instance_uid
-  WHERE se.series_description LIKE '%t2%'
+  WHERE 1=1
+    AND se.series_description LIKE '%t2%' 
+    AND p.patient_id = 6
 
 
   --------------------------------------------------------------------------
