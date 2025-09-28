@@ -7,7 +7,7 @@ ETL_SERVICE=etl
 ETL_REPORT_SCRIPT=scripts/etl/import_reports.py
 ETL_MRI_SCRIPT=scripts/etl/import_mri_data.py
 
-.PHONY: up down init-db etl-report etl-mri install-deps psql
+.PHONY: up down init-db etl-report etl-report-macos etl-mri etl-mri-macos setup-etl-macos setup-etl install-deps psql
 
 # Start services
 up:
@@ -23,8 +23,12 @@ init-db:
 		psql -U $(DB_USER) -d $(DB_NAME) -f /scripts/sql/init_schema.sql
 
 # Run ETL report job 
-etl-report:
+etl-report-macos:
 	source .venv/bin/activate && \
+	python3 $(ETL_REPORT_SCRIPT)
+
+etl-report:
+	. .venv/bin/activate && \
 	python3 $(ETL_REPORT_SCRIPT)
 
 # Clear report data
@@ -34,8 +38,12 @@ clear-report:
 	"
 
 # Run mri data import job locally
-etl-mri:
+etl-mri-macos:
 	source .venv/bin/activate && \
+	python3 $(ETL_MRI_SCRIPT)
+
+etl-mri:
+	. .venv/bin/activate && \
 	python3 $(ETL_MRI_SCRIPT)
 
 # Clear mri data
@@ -44,9 +52,14 @@ clear-mri:
 		psql -U $(DB_USER) -d $(DB_NAME) -c "TRUNCATE TABLE dicom_metadata RESTART IDENTITY CASCADE;"
 
 # Install Python dependencies locally
-setup-etl:
+setup-etl-macos:
 	python3 -m venv .venv && \
 	source .venv/bin/activate && \
+	pip install -r scripts/etl/requirements.txt
+
+setup-etl:
+	python3 -m venv .venv && \
+	. .venv/bin/activate && \
 	pip install -r scripts/etl/requirements.txt
 
 # Open interactive psql shell

@@ -4,3 +4,10 @@ psycopg2-binary
 nltk 
 openpyxl
 pydicom
+Pillow
+numpy
+torch
+torchvision
+# clip-by-openai
+pillow
+transformers
