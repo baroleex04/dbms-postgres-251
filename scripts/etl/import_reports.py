@@ -2,8 +2,10 @@ import pandas as pd
 import re
 import nltk
 from sqlalchemy import create_engine, text
+import nltk
+nltk.download("punkt_tab")
 
-nltk.download("punkt")
+# nltk.download("punkt")
 
 engine = create_engine("postgresql://postgres:postgres@localhost:5432/bikedb")
 file_path = "./data/Radiologists Report.xlsx"

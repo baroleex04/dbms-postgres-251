@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   postgres:
-    image: postgres:15
+    image: pgvector/pgvector:0.6.2-pg15
     container_name: pg_container
     environment:
       POSTGRES_USER: postgres
@@ -27,5 +27,21 @@ services:
     depends_on:
       - postgres
 
+  orthanc:
+    image: jodogne/orthanc-plugins
+    container_name: orthanc
+    restart: unless-stopped
+    ports:
+      - "8042:8042"
+      - "4242:4242"
+    volumes:
+      - orthanc-storage:/var/lib/orthanc/db
+      - ./orthanc.json:/etc/orthanc/orthanc.json
+  dbeaver:
+    image: dbeaver/cloudbeaver:latest   # bản web-based chính thức
+    container_name: dbeaver
+    ports:
+      - "8978:8978"   # Web UI port
 # PV for postgres
-volumes: {}
+volumes: 
+  orthanc-storage:

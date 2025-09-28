@@ -124,11 +124,14 @@ CREATE INDEX idx_extra_study_type ON extra_findings(study_type);
 
 DROP TABLE IF EXISTS instance_images CASCADE;
 
+CREATE EXTENSION IF NOT EXISTS vector;
+
 CREATE TABLE IF NOT EXISTS instance_images (
     image_id SERIAL PRIMARY KEY,
     sop_instance_uid TEXT UNIQUE REFERENCES instances(sop_instance_uid) ON DELETE CASCADE,
     file_path TEXT NOT NULL,
-    base64_data TEXT NOT NULL
+    base64_data TEXT NOT NULL,
+    embedding vector(512)  -- vector embedding 512 chiều
 );
 
 -- For lookup speed
