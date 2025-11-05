@@ -17,6 +17,9 @@ In CLI: Run queries in file `0.create_table.sql` (located in `scripts/sql/`)
 - Go to your browser, paste the URL `localhost:8082` to access the `pgadmin` - a UI for easy monitoring and testing Postgre database system properties.
 - Testing queries are located in folder `scripts/sql`, with each file represents a functionality in Postgre DBS.
 
+- You can connect to postgres database with configurations as in the figure below:
+![alt text](image-1.png)
+
 ## Shutdown command
 ```
 docker compose down -v
@@ -102,6 +105,15 @@ make clear-mri
 Use when re-importing DICOM datasets.
 
 ---
+
+### After run above commands, you can see the tables imported by executing the query below in the UI:
+
+```
+SELECT schemaname, tablename
+FROM pg_tables
+WHERE schemaname = 'public';
+```
+
 
 ### 6. Open SQL Shell
 
